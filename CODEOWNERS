@@ -1,0 +1,17 @@
+# Default owners for everything
+* @derrickvalerio
+
+# Skills and missions
+/skills/ @hermes
+/missions/ @huncho
+
+# Tests and QA
+/tests/ @codex
+/handoffs/ @hermes
+
+# n8n and Supabase
+/n8n/ @hermes
+/supabase/ @hermes
+
+# GitHub Actions
+.github/ @hermes
