@@ -1,0 +1,187 @@
+{
+  "name": "WF_TELEGRAM_INBOUND",
+  "description": "Receives messages from @PI_Ink_Hermes_bot, logs to Supabase, routes to Hermes, replies via Telegram API. INACTIVE until Derrick approves.",
+  "active": false,
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Telegram Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-hermes",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "parse-message",
+      "name": "Parse Telegram Update",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 300],
+      "parameters": {
+        "mode": "manual",
+        "fields": {
+          "values": [
+            {
+              "name": "chat_id",
+              "type": "expression",
+              "value": "={{ $json.body.message.chat.id }}"
+            },
+            {
+              "name": "telegram_user_id",
+              "type": "expression",
+              "value": "={{ $json.body.message.from.id }}"
+            },
+            {
+              "name": "username",
+              "type": "expression",
+              "value": "={{ $json.body.message.from.username }}"
+            },
+            {
+              "name": "message_text",
+              "type": "expression",
+              "value": "={{ $json.body.message.text }}"
+            },
+            {
+              "name": "raw_payload",
+              "type": "expression",
+              "value": "={{ JSON.stringify($json.body) }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "log-inbound",
+      "name": "Log to Supabase (Inbound)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "parameters": {
+        "operation": "insert",
+        "tableId": "telegram_messages",
+        "fields": {
+          "values": [
+            { "fieldId": "chat_id", "fieldValue": "={{ $json.chat_id }}" },
+            { "fieldId": "telegram_user_id", "fieldValue": "={{ $json.telegram_user_id }}" },
+            { "fieldId": "username", "fieldValue": "={{ $json.username }}" },
+            { "fieldId": "direction", "fieldValue": "inbound" },
+            { "fieldId": "message_text", "fieldValue": "={{ $json.message_text }}" },
+            { "fieldId": "raw_payload", "fieldValue": "={{ $json.raw_payload }}" },
+            { "fieldId": "status", "fieldValue": "received" }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": { "name": "Supabase - Hermes OS" }
+      }
+    },
+    {
+      "id": "hermes-route",
+      "name": "Route to Hermes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HERMES_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "headers": {
+          "values": [
+            { "name": "Authorization", "value": "Bearer {{ $env.HERMES_INTERNAL_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'telegram', chat_id: $('Parse Telegram Update').item.json.chat_id, message: $('Parse Telegram Update').item.json.message_text, username: $('Parse Telegram Update').item.json.username }) }}"
+      }
+    },
+    {
+      "id": "send-reply",
+      "name": "Send Reply via Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $('Parse Telegram Update').item.json.chat_id, text: $json.response || 'Hermes received your message.', parse_mode: 'Markdown' }) }}"
+      }
+    },
+    {
+      "id": "log-outbound",
+      "name": "Log to Supabase (Outbound)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "parameters": {
+        "operation": "update",
+        "tableId": "telegram_messages",
+        "filters": {
+          "values": [
+            { "keyName": "chat_id", "condition": "eq", "keyValue": "={{ $('Parse Telegram Update').item.json.chat_id }}" },
+            { "keyName": "status", "condition": "eq", "keyValue": "received" }
+          ]
+        },
+        "fields": {
+          "values": [
+            { "fieldId": "status", "fieldValue": "responded" },
+            { "fieldId": "hermes_response", "fieldValue": "={{ $('Route to Hermes').item.json.response }}" },
+            { "fieldId": "responded_at", "fieldValue": "={{ new Date().toISOString() }}" }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": { "name": "Supabase - Hermes OS" }
+      }
+    },
+    {
+      "id": "webhook-response",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true }",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Webhook": {
+      "main": [[{ "node": "Parse Telegram Update", "type": "main", "index": 0 }]]
+    },
+    "Parse Telegram Update": {
+      "main": [[{ "node": "Log to Supabase (Inbound)", "type": "main", "index": 0 }]]
+    },
+    "Log to Supabase (Inbound)": {
+      "main": [[{ "node": "Route to Hermes", "type": "main", "index": 0 }]]
+    },
+    "Route to Hermes": {
+      "main": [[{ "node": "Send Reply via Telegram", "type": "main", "index": 0 }]]
+    },
+    "Send Reply via Telegram": {
+      "main": [[{ "node": "Log to Supabase (Outbound)", "type": "main", "index": 0 }]]
+    },
+    "Log to Supabase (Outbound)": {
+      "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": ["telegram", "hermes", "inbound", "inactive"]
+}

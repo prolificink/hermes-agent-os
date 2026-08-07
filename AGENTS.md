@@ -7,6 +7,7 @@ Antigravity: QA. Preview/staging only.
 n8n: Deterministic execution. Workflow dispatch only.
 Supabase: Runtime truth.
 Jessica: Protected voice/SMS operator. GPT-4o locked.
+Telegram: @PI_Ink_Hermes_bot operator. Inbound/outbound Telegram channel only. Reports to Hermes. No Notion write. No customer data. INACTIVE until Derrick approval.
 
 Permanent business-lane owners:
 Andrea: Silver / InkCast intelligence. No data = no recommendation. No publishing.

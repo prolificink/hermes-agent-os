@@ -1,4 +1,4 @@
-Active decisions as of 2026-07-20.
+Active decisions as of 2026-08-07.
 
 PRICING: $497 setup + 8% per converted client.
 DELIVERY: Bronze + Silver + Dashboard ship together only after test → audit → fix → test → Derrick approval.
@@ -14,3 +14,4 @@ NOTION WRITER: Hermes only.
 GITHUB: Code and build evidence layer. Not production truth.
 DEPLOYMENT: GitHub Actions only. n8n triggers only. No direct deployment from agents.
 PRODUCTION ENVIRONMENT: Derrick approval required.
+TELEGRAM: @PI_Ink_Hermes_bot (Prolific Ink Hermes). Operator channel between Derrick and Hermes. INACTIVE. Token in n8n credentials only. Workflow in WF_TELEGRAM_INBOUND.json.
